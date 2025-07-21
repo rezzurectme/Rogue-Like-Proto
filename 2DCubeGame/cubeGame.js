@@ -40,8 +40,8 @@ let bullets = []; // Array to hold bullets
 // Define player properties
 let player = {
     tag: 'player', // Player tag
-    xGU: gameWorld.widthGU / 2, // Initial X position in game units
-    yGU: gameWorld.heightGU / 2, // Initial Y position in game units
+    xGU: gameWorld.widthGU / 2 - 2.5, // Initial X position in game units
+    yGU: gameWorld.heightGU / 2 - 2.5, // Initial Y position in game units
     widthGU: 5,
     heightGU: 5,
     color: 'red',
@@ -233,12 +233,9 @@ function handlePlayerLookingDirection() {
     targetAngle = ((targetAngle + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
 
     // Optional: Smooth rotation (if needed)
-    const smoothing = 0.2;
+    const smoothing = 0.5;
     player.sight.lookingAngle = player.sight.lastAngle + smoothing * (targetAngle - player.sight.lastAngle);
     player.sight.lastAngle = player.sight.lookingAngle;
-
-    // Direct update
-    player.sight.lookingAngle = targetAngle;
 }
 
 function handleRectCollision(rect1, rect2) {
@@ -390,7 +387,6 @@ function handleEnemySpawning() {
         const availableQuadrants = Object.entries(gameWorld.quadrents).filter(
             ([name]) => name !== playerQuadrant
         );
-
         if (availableQuadrants.length === 0) return; // Just in case
 
         // Step 3: Randomly select one of the remaining quadrants
@@ -463,7 +459,7 @@ function update() {
 
     // Prevent cube from moving outside the canvas
     player.xGU = Math.max(0, Math.min(gameWorld.widthGU - player.widthGU, player.xGU));
-    player.yGU = Math.max(0, Math.min(gameWorld.widthGU - player.heightGU, player.yGU));
+    player.yGU = Math.max(0, Math.min(gameWorld.heightGU - player.heightGU, player.yGU));
 }
 
 // Function to handle percentage to color hex code conversion
@@ -544,6 +540,15 @@ function drawUI() {
     ctx.font = '16px Arial';
     ctx.fillText(`Sprint: ${Math.round(player.sprint.currentAmount)}`, 50, 25); // Display sprint amount
 
+    // draw health bar
+    ctx.fillStyle = 'white';
+    ctx.fillRect(535, 10, 200, 20); // Background bar
+    ctx.fillStyle = rgbToHex(...percentageToColor(player.health / player.maxHealth));
+    ctx.fillRect(535, 10, (player.health / player.maxHealth) * 200, 20); // Health bar
+    ctx.fillStyle = 'black'; // Text color
+    ctx.font = '16px Arial';
+    ctx.fillText(`Health: ${Math.round(player.health)}`, 575, 25); // Display health amount
+
     // draw aspects of screen
     const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
     ctx.fillStyle = 'white'; // Text color
@@ -554,7 +559,7 @@ function drawUI() {
     ctx.fillText(`Player Position: (${Math.round(player.xGU)}, ${Math.round(player.yGU)})`, 20, 90); // Display player position
     ctx.fillText(`Player looking angle: ${Math.round(player.sight.lookingAngle * (180 / Math.PI))}°`, 20, 110); // Display player looking angle
 
-    speed = Math.sqrt(player.dxGU * player.dxGU + player.dyGU * player.dyGU).toFixed(3);
+    let speed = Math.sqrt(player.dxGU * player.dxGU + player.dyGU * player.dyGU).toFixed(3);
     ctx.fillText(`Player Current Speed: (${speed})`, 20, 130); // Display player speed
 }
 
@@ -672,6 +677,7 @@ function gameLoop() {
 }
 
 // Start enemy spawning
+// NOTE: Call spawnEnemies() only ONCE to avoid multiple intervals and excessive enemy spawns.
 spawnEnemies();
 // Start game loop
 gameLoop();
