@@ -1,4 +1,3 @@
-
 // Get game timer
 const startTime = Date.now();
 
@@ -24,7 +23,6 @@ const gameWorld = {
         bottomRight: { xGU: 50, yGU: 50, widthGU: 50, heightGU: 50 },
     },
 }
-
 let GUtoPxX = canvas.width / gameWorld.widthGU; // Conversion factor from game units to pixels in X direction
 let GUtoPxY = canvas.height / gameWorld.heightGU; // Conversion factor from game units to pixels in Y direction
 
@@ -38,6 +36,11 @@ const gameGrid = {
 
 // Pausing Boolean
 let isPaused = false;
+let pauseMenus = {
+    normalPause: false,
+    upgrade: false,
+    gameOver: false,
+};
 
 let bullets = []; // Array to hold bullets
 // Define player properties
@@ -61,9 +64,9 @@ let player = {
         dyGU: 0, // Initial vertical speed
         // Define bullet properties
         aspects: {
-            damage: 10,
+            damage: 5,
             rangeGU: 25, // Range in pixels
-            fireRate: 500, // Fire rate in milliseconds
+            fireRate: 433, // Fire rate in milliseconds
             shotSpeedxGU: 0.7, // Speed of the bullet
             shotSpeedyGU: 0.7, // Speed of the bullet
             lastshot: 0, // Last shot time
@@ -104,9 +107,9 @@ let target = {
     heightGU: 5,
     speedGU: 0.1, // Speed of the target
     maxSpeedGU: 0.2, // Maximum speed of the target
-    color: 'rgba(255, 255, 0, 0.5)', // Semi-transparent red color
-    health: 10, // Target health
-    maxHealth: 10, // Maximum health
+    color: 'rgba(255, 255, 0, 1)', // Semi-transparent red color
+    health: 25, // Target health
+    maxHealth: 25, // Maximum health
     limit: 3, // Maximum number of targets
     spawnRate: 500, // Spawn rate in milliseconds
 };
@@ -126,8 +129,9 @@ document.addEventListener("keypress", (event) => {
     const key = event.key.toLowerCase();
     keys.add(key);
 
-    if(event.key === "p"){
+    if(event.key === "p" && !pauseMenus.gameOver){
         isPaused = !isPaused;
+        pauseMenus.normalPause = !pauseMenus.normalPause;
     }
 });
 
@@ -470,6 +474,18 @@ function moveEnemiesTowardsPlayer(){
     });
 }
 
+function EnemyContactDmg(){
+    enemies.forEach( enemy => {
+        if(handleRectCollision(enemy, player)){
+            player.health -= 10;
+            enemy.health -= 10;
+            if (enemy.health <= 0) {
+                enemies = enemies.filter(e => e !== enemy);
+            }
+        }
+    });
+}
+
 function checkEnemyInRange(enemy) {
     // Check if the enemy is within the player's sight range
     // using handleCircleCollision
@@ -489,7 +505,14 @@ function update() {
     if (keys.has('k')) createBullet(); // Create a bullet when the 'k' key is pressed
     updateBullets(); // Update bullets
 
+    EnemyContactDmg();
     moveEnemiesTowardsPlayer();
+
+    // Check player's health for gameover
+    if(player.health <= 0){
+        isPaused = true;
+        pauseMenus.gameOver = !pauseMenus.gameOver;
+    }
 
     // Update player position
     player.xGU += player.dxGU;
@@ -624,6 +647,29 @@ function drawPauseMenu(){
     ctx.fillText("Paused :)", gameWorld.widthGU*GUtoPxX / 2, gameWorld.heightGU*GUtoPxY / 2);
 }
 
+function drawGameOver(){
+    ctx.fillStyle = 'rgba(175, 0, 0, 1)';
+    ctx.fillRect(
+        (gameWorld.widthGU*GUtoPxX / 2) * (3/5), // position
+        (gameWorld.heightGU*GUtoPxY / 2) * (3/5), 
+        (gameWorld.widthGU*GUtoPxY / 10) * 4, // 2nd number is # of game tiles
+        (gameWorld.heightGU*GUtoPxY / 10) * 4,
+    );
+    ctx.strokeStyle = 'rgba(255, 255, 255, 1)';
+    ctx.strokeRect(
+        (gameWorld.widthGU*GUtoPxX / 2) * (3/5), // position
+        (gameWorld.heightGU*GUtoPxY / 2) * (3/5), 
+        (gameWorld.widthGU*GUtoPxY / 10) * 4, // 2nd number is # of game tiles
+        (gameWorld.heightGU*GUtoPxY / 10) * 4,
+    );
+
+    // Text
+    ctx.fillStyle = 'rgba(255, 255, 255, 1)'; // Text color
+    ctx.font = '32px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText("You Died :(", gameWorld.widthGU*GUtoPxX / 2, gameWorld.heightGU*GUtoPxY / 2);
+}
+
 // Function to draw the player
 function drawPlayer() {
     // draw player looking direction
@@ -702,7 +748,8 @@ function drawBullets() {
 // Function to draw enemies
 function drawEnemies() {
     enemies.forEach(enemy => {
-        ctx.fillStyle = enemy.color; // Set enemy color
+        let colorChange = 255 * (enemy.health / enemy.maxHealth);
+        ctx.fillStyle = 'rgba(255,' + colorChange.toString() + ', 0, 1)'; // Set enemy color
         ctx.fillRect(enemy.xGU * GUtoPxX, enemy.yGU * GUtoPxY, enemy.widthGU * GUtoPxX, enemy.heightGU * GUtoPxY); // Draw enemy rectangle
         ctx.strokeStyle = 'black'; // Border color
         ctx.lineWidth = 1; // Border thickness
@@ -727,18 +774,19 @@ function draw() {
 
     // Draw the UI
     drawUI();
-
-    if(isPaused)
-        drawPauseMenu();
-
 }
 
 // Game loop    
 function gameLoop() {
-    if(!isPaused)
+    if(!isPaused){
         update();
-    
-    draw();
+        draw();
+    }
+    if(isPaused && pauseMenus.normalPause)
+        drawPauseMenu();
+    else if(isPaused && pauseMenus.gameOver)
+        drawGameOver();
+
     requestAnimationFrame(gameLoop);
 }
 
