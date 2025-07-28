@@ -36,6 +36,9 @@ const gameGrid = {
 
 };
 
+// Pausing Boolean
+let isPaused = false;
+
 let bullets = []; // Array to hold bullets
 // Define player properties
 let player = {
@@ -95,13 +98,12 @@ let target = {
     tag: 'enemy', // Target tag
     xGU: 0, // Initial X position in game units
     yGU: 0, // Initial Y position in game units
+    dxGU: 0, // Initial horizontal speed
+    dyGU: 0, // Initial vertical speed
     widthGU: 5,
     heightGU: 5,
     speedGU: 0.1, // Speed of the target
     maxSpeedGU: 0.2, // Maximum speed of the target
-    friction: 0.1, // Friction applied to the target
-    dxGU: 0, // Initial horizontal speed
-    dyGU: 0, // Initial vertical speed
     color: 'rgba(255, 255, 0, 0.5)', // Semi-transparent red color
     health: 10, // Target health
     maxHealth: 10, // Maximum health
@@ -118,6 +120,16 @@ const keys = new Set();
 // Listen for keyboard events
 document.addEventListener("keydown", (event) => keys.add(event.key.toLowerCase()));
 document.addEventListener("keyup", (event) => keys.delete(event.key.toLowerCase()));
+
+// Listen for keyboard even to trigger pausing
+document.addEventListener("keypress", (event) => {
+    const key = event.key.toLowerCase();
+    keys.add(key);
+
+    if(event.key === "p"){
+        isPaused = !isPaused;
+    }
+});
 
 // function for sprint cooldown
 function sprintHandling() {
@@ -431,6 +443,33 @@ function spawnEnemies() {
     // Note: This function should be called once, not every frame
 }
 
+function moveEnemiesTowardsPlayer(){
+    enemies.forEach( enemy => {
+        // Calculate center positions
+        const enemyCenterX = enemy.xGU + enemy.widthGU / 2;
+        const enemyCenterY = enemy.yGU + enemy.heightGU / 2;
+        const playerCenterX = player.xGU + player.widthGU / 2;
+        const playerCenterY = player.yGU + player.heightGU / 2;
+
+        // Calculate direction to player
+        const dx = playerCenterX - enemyCenterX;
+        const dy = playerCenterY - enemyCenterY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Normalize direction
+        const normalizedX = dx / distance;
+        const normalizedY = dy / distance;
+
+        // Move enemy toward player
+        const speed = target.speedGU; // or set per enemy
+        enemy.xGU += normalizedX * speed;
+        enemy.yGU += normalizedY * speed;
+
+        enemy.dxGU = Math.max(-enemy.maxSpeedGU, Math.min(enemy.maxSpeedGU, enemy.dxGU));
+        enemy.dyGU = Math.max(-enemy.maxSpeedGU, Math.min(enemy.maxSpeedGU, enemy.dyGU));
+    });
+}
+
 function checkEnemyInRange(enemy) {
     // Check if the enemy is within the player's sight range
     // using handleCircleCollision
@@ -447,11 +486,10 @@ function checkEnemyInRange(enemy) {
 function update() {
     movePlayer(); // Handle player movement
     handlePlayerLookingDirection();
-    if (keys.has('k')) {
-        // Create a bullet when the 'k' key is pressed
-        createBullet();
-    }
+    if (keys.has('k')) createBullet(); // Create a bullet when the 'k' key is pressed
     updateBullets(); // Update bullets
+
+    moveEnemiesTowardsPlayer();
 
     // Update player position
     player.xGU += player.dxGU;
@@ -563,6 +601,29 @@ function drawUI() {
     ctx.fillText(`Player Current Speed: (${speed})`, 20, 130); // Display player speed
 }
 
+function drawPauseMenu(){
+    ctx.fillStyle = 'rgba(7, 1, 62, 1)';
+    ctx.fillRect(
+        (gameWorld.widthGU*GUtoPxX / 2) * (3/5), // position
+        (gameWorld.heightGU*GUtoPxY / 2) * (3/5), 
+        (gameWorld.widthGU*GUtoPxY / 10) * 4, // 2nd number is # of game tiles
+        (gameWorld.heightGU*GUtoPxY / 10) * 4,
+    );
+    ctx.strokeStyle = 'rgba(255, 255, 255, 1)';
+    ctx.strokeRect(
+        (gameWorld.widthGU*GUtoPxX / 2) * (3/5), // position
+        (gameWorld.heightGU*GUtoPxY / 2) * (3/5), 
+        (gameWorld.widthGU*GUtoPxY / 10) * 4, // 2nd number is # of game tiles
+        (gameWorld.heightGU*GUtoPxY / 10) * 4,
+    );
+
+    // Text
+    ctx.fillStyle = 'rgba(255, 255, 255, 1)'; // Text color
+    ctx.font = '32px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText("Paused :)", gameWorld.widthGU*GUtoPxX / 2, gameWorld.heightGU*GUtoPxY / 2);
+}
+
 // Function to draw the player
 function drawPlayer() {
     // draw player looking direction
@@ -667,11 +728,16 @@ function draw() {
     // Draw the UI
     drawUI();
 
+    if(isPaused)
+        drawPauseMenu();
+
 }
 
 // Game loop    
 function gameLoop() {
-    update();
+    if(!isPaused)
+        update();
+    
     draw();
     requestAnimationFrame(gameLoop);
 }
