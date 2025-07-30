@@ -1,6 +1,9 @@
 // Get game timer
 const startTime = Date.now();
 
+// time based off computer not fps
+let lastTime = performance.now();
+
 // Select the canvas and get the 2D rendering context
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -51,9 +54,10 @@ let player = {
     widthGU: 5,
     heightGU: 5,
     color: 'red',
+    accelerationGU: 2.0, // accel in GU per seconds^2
     speedGU: 0.2,
-    maxSpeedGU: .45,
-    friction: 0.40,
+    maxSpeedGU: 0.5,
+    friction: 0.015,
     dxGU: 0,
     dyGU: 0,
     bullet: {
@@ -89,7 +93,7 @@ let player = {
         currentAmount: 100,
         maxAmount: 100,
         rechargeRate: 10, // Amount per second
-        sprintSpeed: 1.5, // Speed multiplier when sprinting
+        sprintSpeed: 1.75, // Speed multiplier when sprinting
     },
     health: 100, // Player health
     maxHealth: 100, // Maximum health
@@ -136,22 +140,24 @@ document.addEventListener("keypress", (event) => {
 });
 
 // function for sprint cooldown
-function sprintHandling() {
+function sprintHandling(deltaTime) {
     // Recharge sprint amount if not active and below max amount
     // This allows the player to recharge sprint amount when not actively sprinting
     if (player.sprint.currentAmount < player.sprint.maxAmount && !player.sprint.active) {
         // Recharge sprint amount at the defined rate
-        player.sprint.currentAmount += player.sprint.rechargeRate * (1 / 60); // Recharge per frame
+        player.sprint.currentAmount += player.sprint.rechargeRate * deltaTime; // Recharge per frame
         if (player.sprint.currentAmount > player.sprint.maxAmount) {
             player.sprint.currentAmount = player.sprint.maxAmount; // Cap at max amount
         }
     }
 }
 
-function movePlayer() {
+function movePlayer(deltaTime) {
+    // accelration
+    const accel = player.accelerationGU * deltaTime;
     // Declare movement flags at the start of the function
     let movingX = false;
-    let movingY = false;
+    let movingY = false;   
 
     if (keys.has(player.sprint.button.toLowerCase())) {
         // Activate sprint if the key is pressed and current amount is greater than 0
@@ -160,47 +166,29 @@ function movePlayer() {
         } else {
             player.sprint.active = false; // Deactivate sprint if no amount left
         }
-    } else {
-        // Deactivate sprint if the key is not pressed
-        player.sprint.active = false;
-    }
+    } else 
+        player.sprint.active = false; // Deactivate sprint if the key is not pressed
     // Handle sprint cooldown
-    sprintHandling();
+    sprintHandling(deltaTime);
 
     // Horizontal movement
     if (keys.has('a') && !keys.has('d')) {
-        if (player.sprint.active && player.sprint.currentAmount > 0) {
-            player.sprint.currentAmount -= player.sprint.rechargeRate * (1 / 60); // Decrease sprint amount
-            player.dxGU -= player.speedGU * player.sprint.sprintSpeed; // Increase speed when sprinting
-        } else if (!player.sprint.active) {
-            player.dxGU -= player.speedGU; // Normal speed
-        }
+        player.dxGU -= accel * (player.sprint.active ? player.sprint.sprintSpeed : 1);
+        player.sprint.currentAmount -= (player.sprint.active && player.sprint.currentAmount > 0 ? player.sprint.rechargeRate * deltaTime : 0);
         movingX = true;
     } else if (keys.has('d') && !keys.has('a')) {
-        if (player.sprint.active && player.sprint.currentAmount > 0) {
-            player.sprint.currentAmount -= player.sprint.rechargeRate * (1 / 60); // Decrease sprint amount
-            player.dxGU += player.speedGU * player.sprint.sprintSpeed; // Increase speed when sprinting
-        } else if (!player.sprint.active) {
-            player.dxGU += player.speedGU; // Normal speed
-        }
+        player.dxGU += accel * (player.sprint.active ? player.sprint.sprintSpeed : 1);
+        player.sprint.currentAmount -= (player.sprint.active && player.sprint.currentAmount > 0 ? player.sprint.rechargeRate * deltaTime : 0);
         movingX = true;
     }
     // Vertical movement
     if (keys.has('w') && !keys.has('s')) {
-        if (player.sprint.active && player.sprint.currentAmount > 0) {
-            player.sprint.currentAmount -= player.sprint.rechargeRate * (1 / 60); // Decrease sprint amount
-            player.dyGU -= player.speedGU * player.sprint.sprintSpeed; // Increase speed when sprinting
-        } else if (!player.sprint.active) {
-            player.dyGU -= player.speedGU; // Normal speed
-        }
+        player.dyGU -= accel * (player.sprint.active ? player.sprint.sprintSpeed : 1);
+        player.sprint.currentAmount -= (player.sprint.active && player.sprint.currentAmount > 0 ? player.sprint.rechargeRate * deltaTime : 0);
         movingY = true;
     } else if (keys.has('s') && !keys.has('w')) {
-        if (player.sprint.active && player.sprint.currentAmount > 0) {
-            player.sprint.currentAmount -= player.sprint.rechargeRate * (1 / 60); // Decrease sprint amount
-            player.dyGU += player.speedGU * player.sprint.sprintSpeed; // Increase speed when sprinting
-        } else if (!player.sprint.active) {
-            player.dyGU += player.speedGU; // Normal speed
-        }
+        player.dyGU += accel * (player.sprint.active ? player.sprint.sprintSpeed : 1);
+        player.sprint.currentAmount -= (player.sprint.active && player.sprint.currentAmount > 0 ? player.sprint.rechargeRate * deltaTime : 0);
         movingY = true;
     }
 
@@ -215,8 +203,9 @@ function movePlayer() {
     
 
     // Apply friction when no movement input
-    if (!movingX) player.dxGU *= player.friction;
-    if (!movingY) player.dyGU *= player.friction;
+    const frictionFactor = Math.pow(player.friction, deltaTime * 60); // normalize to 60fps
+    if (!movingX) player.dxGU *= frictionFactor;
+    if (!movingY) player.dyGU *= frictionFactor;
 }
 
 // determine where the player is looking
@@ -294,9 +283,6 @@ function handlePlayerBulletCollision() {
             if (handleRectCollision(bullet, enemy)) {
                 // Bullet hit an enemy
                 enemy.health -= bullet.aspects.damage;
-
-                // Log for debugging (optional)
-                console.log("Bullet hit enemy! Enemy health:", enemy.health);
 
                 // Remove enemy if its health is depleted
                 if (enemy.health <= 0) {
@@ -430,11 +416,14 @@ function handleEnemySpawning() {
             }
         }
 
-        if (validPosition) {
-            enemies.push(newEnemy);
-        } else {
-            // Retry if collision detected
-            handleEnemySpawning();
+        // Ensure attempts to spawn is limited
+        let attempts = 10;
+        while (attempts-- > 0) {
+            // try spawn logic
+            if (validPosition) {
+                enemies.push(newEnemy);
+                break;
+            }
         }
     }
 }
@@ -447,13 +436,15 @@ function spawnEnemies() {
     // Note: This function should be called once, not every frame
 }
 
-function moveEnemiesTowardsPlayer(){
+function moveEnemiesTowardsPlayer(){ 
+    // Calculate center positions
+    const playerCenterX = player.xGU + player.widthGU / 2;
+    const playerCenterY = player.yGU + player.heightGU / 2;
+
     enemies.forEach( enemy => {
         // Calculate center positions
         const enemyCenterX = enemy.xGU + enemy.widthGU / 2;
         const enemyCenterY = enemy.yGU + enemy.heightGU / 2;
-        const playerCenterX = player.xGU + player.widthGU / 2;
-        const playerCenterY = player.yGU + player.heightGU / 2;
 
         // Calculate direction to player
         const dx = playerCenterX - enemyCenterX;
@@ -477,7 +468,7 @@ function moveEnemiesTowardsPlayer(){
 function EnemyContactDmg(){
     enemies.forEach( enemy => {
         if(handleRectCollision(enemy, player)){
-            player.health -= 10;
+            player.health -= enemy.health;
             enemy.health -= 10;
             if (enemy.health <= 0) {
                 enemies = enemies.filter(e => e !== enemy);
@@ -499,8 +490,8 @@ function checkEnemyInRange(enemy) {
 }
 
 // Function to update game state
-function update() {
-    movePlayer(); // Handle player movement
+function update(deltaTime) {
+    movePlayer(deltaTime); // Handle player movement
     handlePlayerLookingDirection();
     if (keys.has('k')) createBullet(); // Create a bullet when the 'k' key is pressed
     updateBullets(); // Update bullets
@@ -777,9 +768,13 @@ function draw() {
 }
 
 // Game loop    
-function gameLoop() {
+function gameLoop(currentTime) {
+    // Calculate delta time in seconds
+    const deltaTime = (currentTime - lastTime) / 1000;
+    lastTime = currentTime;
+
     if(!isPaused){
-        update();
+        update(deltaTime);
         draw();
     }
     if(isPaused && pauseMenus.normalPause)
@@ -794,4 +789,4 @@ function gameLoop() {
 // NOTE: Call spawnEnemies() only ONCE to avoid multiple intervals and excessive enemy spawns.
 spawnEnemies();
 // Start game loop
-gameLoop();
+gameLoop(lastTime);
