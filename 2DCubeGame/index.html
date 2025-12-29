@@ -7,19 +7,51 @@
     <style>
         html, body {
             margin: 0;
-            display: flex;
-            justify-content: center; /* Pushes content to the right */
-            align-items: center;
             height: 100vh;
-            background-color: #3b3b3b; /* Optional: background color */
+            background-color: #262626;
+            overflow: hidden;
         }
-        canvas {
+
+        /* CENTER CANVAS */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* LEFT INFO PANEL */
+        #infoPanel {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background-color: #1b1b1b;
+            padding: 30px;
+            min-width: 300px;
+            width: fit-content;
+            height: 90%;
+        }
+
+        /* GAME CANVAS */
+        #gameCanvas {
+            background-color: #ffffff;
             display: block;
         }
     </style>
 </head>
 <body>
+    
+    <div id="infoPanel">
+        <h2>Player Info</h2>
+        <p id="pos">Position: (0, 0)</p>
+        <p id="speed">Speed: 0</p>
+        <p id="cooldown">Dash Cooldown: 0</p>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
-    <script src="cubeGame.js"></script>
+
+    <script type="module" src="Main.js"></script>
+
 </body>
 </html>
