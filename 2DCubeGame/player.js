@@ -1,24 +1,23 @@
 import { Vector2 } from "./Vectors.js";
-import { getInputs, isKeyPressed, getInputQueue } from "./inputs.js";
-import { TileMap } from "./mapping/TileMap.js";
+import { isKeyPressed } from "./inputs.js";
+import { CollisionObject } from "./mapping/Collision_Object.js";
 
-export class Player {
+export class Player extends CollisionObject {
     constructor(position = new Vector2(0, 0), speed = 200) {
-        // ---- Core Player Properties ----
-        this.position = position;
+        // Call parent constructor
+        super(position, 20, 20, null, "rectangle");
+
+        // ---- Player-specific properties ----
         this.velocity = new Vector2(0, 0);
         this.speed = speed;
-        this.direction = new Vector2(1, 0); // default facing right
-
-        this.width = 20;
-        this.height = 20;
+        this.direction = new Vector2(1, 0);
 
         // ---- Dash Properties ----
         this.isDashing = false;
         this.dashDistance = 150;
-        this.dashCooldown = 2.0; // seconds
-        this.dashCooldownTimer = 0; // seconds
-        this.dashTime = 0.2; // seconds
+        this.dashCooldown = 2.0;
+        this.dashCooldownTimer = 0;
+        this.dashTime = 0.2;
     }
     
     update(dt) {
@@ -31,10 +30,10 @@ export class Player {
         // create a direction vector based on key inputs
         let dir = new Vector2();
 
-        if (isKeyPressed("w"))    dir.y -= 1;
+        if (isKeyPressed("w"))  dir.y -= 1;
         if (isKeyPressed("s"))  dir.y += 1;
         if (isKeyPressed("a"))  dir.x -= 1;
-        if (isKeyPressed("d")) dir.x += 1;
+        if (isKeyPressed("d"))  dir.x += 1;
 
         dir = dir.normalize();
 

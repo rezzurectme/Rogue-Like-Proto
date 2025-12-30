@@ -2,12 +2,12 @@ import { Vector2 } from './Vectors.js';
 import { Player } from './player.js';
 import { TileMap } from './mapping/TileMap.js';
 
-const tileMap = new TileMap();
-
 export const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-canvas.width = 600;
-canvas.height = 600;
+canvas.width = 12*50;
+canvas.height = 12*50;
+
+const tileMap = new TileMap();
 
 const devMode = true;
 
@@ -38,7 +38,7 @@ function gameLoop(t) {
     const dt = (t - last) / 1000;
     last = t;
 
-    update(dt);
+    update(dt); 
     player.updateDirection();
 
     // update UI
